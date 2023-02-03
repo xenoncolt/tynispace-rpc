@@ -6,9 +6,9 @@ use colored::Colorize;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
-    let rpc_client_id = dotenv::var("DISCORD_APPLICATION_ID").unwrap_or_else(|_| "".to_string());
-    let url = dotenv::var("JELLYFIN_URL").unwrap_or_else(|_| "".to_string());
-    let api_key = dotenv::var("JELLYFIN_API_KEY").unwrap_or_else(|_| "".to_string());
+    let rpc_client_id = "1022477758556798986".to_string();
+    let url = "https://stream.jellyflix.ga".to_string();
+    let api_key = "".to_string();
     let username = dotenv::var("JELLYFIN_USERNAME").unwrap_or_else(|_| "".to_string());
     
     println!("{}\n                          {}", "//////////////////////////////////////////////////////////////////".bold(), "Jellyfin-RPC".bright_blue());
