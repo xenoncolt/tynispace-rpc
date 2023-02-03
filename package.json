@@ -1,0 +1,9 @@
+{
+    "name": "jellyflix-rpc",
+    "author": {
+        "name": "Xenon Colt",
+        "Idea From": "Radiicall"
+    },
+    "version": "v0.1.1",
+    "description": "A discord RPC which can show what you are watching in Jellyflix"
+}
