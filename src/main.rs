@@ -1,316 +1,179 @@
-use reqwest::{Response};
-use serde_json::Value;
+pub mod jellyfin;
+pub use crate::jellyfin::*;
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use colored::Colorize;
+use clap::Parser;
+use retry::retry_with_index;
+
+struct Config {
+    rpc_client_id: String,
+    url: String,
+    api_key: String,
+    username: String,
+    enable_images: bool,
+}
+
+#[derive(Debug)]
+enum ConfigError {
+    MissingConfig,
+    Io(std::io::Error),
+    Var(std::env::VarError),
+}
+
+impl From<std::env::VarError> for ConfigError {
+    fn from(value: std::env::VarError) -> Self {
+        Self::Var(value)
+    }
+}
+
+impl From<std::io::Error> for ConfigError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+#[derive(Parser, Debug)]
+#[command(author = "Xenon Colt")]
+#[command(version)]
+#[command(about = "Rich presence for jellyflix", long_about = None)]
+struct Args {
+    #[arg(short = 'c', long = "config", help = "Path to the config file")]
+    config: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok();
+    let args = Args::parse();
+    dotenv::from_path(
+        args.config.unwrap_or_else(|| 
+            std::env::current_exe().unwrap()
+            .parent().unwrap()
+            .join(".env").to_string_lossy().to_string()
+        )
+    ).ok();
+    let config = load_config().expect("Please make a file called .env and populate it with the needed variables");
+
+    println!("{}\n                          {}", "//////////////////////////////////////////////////////////////////".bold(), "Jellyfin-RPC".bright_blue());
+
+    if config.enable_images {
+        println!("{}\n{}", "------------------------------------------------------------------".bold(), "Images won't work unless the server is forwarded!!!!".bold().red())
+    }
+
+    let mut connected: bool = false;
+    let mut rich_presence_client = DiscordIpcClient::new(config.rpc_client_id.as_str()).expect("Failed to create Discord RPC client, discord is down or the Client ID is invalid.");
+
+    // Start up the client connection, so that we can actually send and receive stuff
+    connect(&mut rich_presence_client);
+    println!("{}\n{}", "Connected to Discord Rich Presence Socket".bright_green().bold(), "------------------------------------------------------------------".bold());
+
+    // Start loop
+    loop {
+        let content = get_jellyfin_playing(&config.url, &config.api_key, &config.username, &config.enable_images).await.unwrap();
+
+        if !content.media_type.is_empty() {
+            // Print what we're watching
+            if !connected {
+                println!("{}\n{}", content.details.bright_cyan().bold(), content.state_message.bright_cyan().bold());
+
+                // Set connected to true so that we don't try to connect again
+                connected = true;
+            }
+
+            // Set the activity
+            let mut rpcbuttons: Vec<activity::Button> = std::vec::Vec::new();
+            for i in 0..content.external_service_names.len() {
+                rpcbuttons.push(activity::Button::new(
+                    &content.external_service_names[i],
+                    &content.external_service_urls[i],
+                ));
+            }
+
+            rich_presence_client.set_activity(
+                setactivity(&content.state_message, &content.details, content.endtime, &content.image_url, rpcbuttons)
+            ).unwrap_or_else(|_| {
+                rich_presence_client.reconnect().expect("Failed to reconnect");
+            });
+
+        } else if connected {
+            // Disconnect from the client
+            rich_presence_client.clear_activity().expect("Failed to clear activity");
+            // Set connected to false so that we dont try to disconnect again
+            connected = false;
+            println!("{}\n{}\n{}", "------------------------------------------------------------------".bold(), "Cleared Rich Presence".bright_red().bold(), "------------------------------------------------------------------".bold());
+        }
+    // Sleep for 2 seconds
+    std::thread::sleep(std::time::Duration::from_millis(750));
+    }
+}
+
+fn load_config() -> Result<Config, Box<dyn core::fmt::Debug>> {
     let rpc_client_id = "1022477758556798986".to_string();
     let url = "https://stream.jellyflix.ga".to_string();
     let api_key = "".to_string();
     let username = dotenv::var("JELLYFIN_USERNAME").unwrap_or_else(|_| "".to_string());
-    
-    println!("{}\n                          {}", "//////////////////////////////////////////////////////////////////".bold(), "Jellyfin-RPC".bright_blue());
-
-    let mut connected: bool = false;
-    let mut drpc = DiscordIpcClient::new(rpc_client_id.as_str()).expect("Failed to create Discord RPC client, discord is down or the Client ID is invalid.");
-    let img: String = "https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg".to_string();
-    let mut curr_details: String = "".to_string();
-    // Start loop
-    loop {
-        let jfresult = match get_jellyfin_playing(&url, &api_key, &username).await {
-            Ok(res) => res,
-            Err(_) => vec!["".to_string()],
-        };
-        let media_type = &jfresult[0];
-        if !media_type.is_empty() {
-            let mut extname: Vec<&str> = std::vec::Vec::new();
-            jfresult[1].split(',').for_each(|p| extname.push(p));
-            let mut exturl: Vec<&str> = std::vec::Vec::new();
-            jfresult[2].split(',').for_each(|p| exturl.push(p));
-            let details = "Watching ".to_owned() + &jfresult[3][1..jfresult[3].len() - 1];
-            let endtime = jfresult[4].parse::<i64>().unwrap();
-            let state_message = "".to_owned() + &jfresult[5];
-
-            if !connected {
-                // Start up the client connection, so that we can actually send and receive stuff
-                connect(&mut drpc);
-                println!("{}\n{}\n{}\n{}\n{}", "//////////////////////////////////////////////////////////////////".bold(), "Connected to Discord RPC client".bright_green().bold(), "//////////////////////////////////////////////////////////////////".bold(), details.bright_cyan().bold(), state_message.bright_cyan().bold());
-
-                // Set current state message
-                curr_details = details.to_owned();
-                // Set connected to true so that we don't try to connect again
-                connected = true;
-            } else if details != curr_details {
-                    // Disconnect from the client
-                drpc.close().expect("Failed to close Discord RPC client");
-                // Set connected to false so that we dont try to disconnect again
-                connected = false;
-                println!("{}", "Disconnected from Discord RPC client".bright_red().bold());
-                std::thread::sleep(std::time::Duration::from_secs(2));
-                continue;
-            }
-            // Set the activity
-            let mut rpcbuttons: Vec<activity::Button> = std::vec::Vec::new();
-            for i in 0..extname.len() {
-                rpcbuttons.push(activity::Button::new(
-                    extname[i],
-                    exturl[i],
-                ));
-            }
-            
-            set_activity(&mut drpc, &state_message, &details, endtime, rpcbuttons, &img)
-            
-        } else if connected {
-            // Disconnect from the client
-            drpc.close().expect("Failed to close Discord RPC client");
-            // Set connected to false so that we dont try to disconnect again
-            connected = false;
-            println!("{}", "Disconnected from Discord RPC client".bright_red().bold());
-        }
-    // Sleep for 10 seconds
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    }
-}
-
-async fn get_jellyfin_playing(url: &String, api_key: &String, username: &String) -> Result<Vec<String>, reqwest::Error> {
-    // Create the request
-    let url = format!("{}/Sessions?api_key={}", url, api_key);
-    // Get response
-    let res: Response = reqwest::get(url).await?;
-    
-    // Get the body of the response
-    let body = res.text().await?;
-    
-    // Convert to json
-    let json: Vec<Value> = serde_json::from_str(&body).unwrap();
-    let mut extname: String = "".to_string();
-    let mut exturl: String = "".to_string();
-    // For each item in json
-    for i in 0..json.len() {
-        // try to get the username, else repeat loop
-        if Option::is_none(&json[i].get("UserName")) { continue }
-        // If the username matches the one supplied
-        if json[i].get("UserName").unwrap().as_str().unwrap() == username {
-            // Check if anything is playing, else repeat the loop
-            match json[i].get("NowPlayingItem") {
-                None => continue,
-                npi => {
-                    // Unwrap the option that was returned
-                    let nowplayingitem = npi.unwrap();
-
-                    let extsrv = get_external_services(nowplayingitem);
-                    if !extsrv[0].is_empty() {
-                        extname = "".to_owned() + &extsrv[0];
-                        exturl = "".to_owned() + &extsrv[1];
-                    }
-
-                    let timeleft = get_end_timer(nowplayingitem, &json[i]);
-
-                    return Ok(get_currently_watching(nowplayingitem, &extname, &exturl, timeleft))
-                },
-            };
-        }
-    }
-    Ok(vec!["".to_owned()])
-}
-
-fn get_external_services(npi: &Value) -> Vec<String> {
-    /*
-    The is for external services that might host info about what we're currently watching.
-    It first checks if they actually exist by checking if the first thing in the array is an object.
-    If it is then it creates a for loop and pushes every "name" and "url" to 2 strings with commas seperating.
-    When the for loop reaches 2 it breaks (this is the max number of buttons in discord rich presence),
-    then it removes the trailing commas from the strings.
-    */
-    let mut extname: String = "".to_string();
-    let mut exturl: String = "".to_string();
-    match npi.get("ExternalUrls") {
-        None => (),
-        extsrv => {
-            if extsrv.expect("Couldn't find ExternalUrls")[0].is_object() {
-                let mut x = 0;
-                for i in extsrv.expect("Couldn't find ExternalUrls").as_array().unwrap() {
-                    extname.push_str(i.get("Name").unwrap().as_str().unwrap());
-                    exturl.push_str(i.get("Url").unwrap().as_str().unwrap());
-                    extname.push(',');
-                    exturl.push(',');
-                    x += 1;
-                    if x == 2 {
-                        break
-                    }
-                }
-                extname = extname[0..extname.len() - 1].to_string();
-                exturl = exturl[0..exturl.len() - 1].to_string();
-                return vec![extname, exturl]
-            }
-        }
+    let enable_images = match dotenv::var("ENABLE_IMAGES").unwrap_or_else(|_| "".to_string()).to_lowercase().as_str() {
+        "true" => true,
+        "false" => false,
+        _ => false,
     };
-    vec!["".to_string()]
-}
 
-fn get_end_timer(npi: &Value, json: &Value) -> String {
-    /*
-    This is for the end timer,
-    it gets the PositionTicks as a string so we can cut off the last 7 digits (millis).
-    Then if its empty afterwards we make it 0, then parse it to an i64.
-    After that we get the RunTimeTicks, remove the last 7 digits and parse that to an i64.
-    PositionTicks is how far into the video we are and RunTimeTicks is how many ticks the video will last for.
-    We then do current "SystemTime + (RunTimeTicks - PositionTicks)" and that's how many seconds there are left in the video from the current unix epoch.
-    */
-    match json.get("PlayState").unwrap().get("PositionTicks") {
-        None => (),
-        pst => {
-            // TODO: Find a better way to do this
-            let mut position_ticks_string = "0".to_string();
-            if pst.unwrap().to_string().len() >= 7 {
-                position_ticks_string = pst.unwrap().to_string()[0..pst.unwrap().to_string().len() - 7].to_string();
-            }
-            if position_ticks_string.trim().is_empty() {
-                position_ticks_string = "0".to_string()
-            }
-            let position_ticks = position_ticks_string.parse::<i64>().unwrap();
-            match npi.get("RunTimeTicks") {
-                None => (),
-                rtt => {
-                    // TODO: Find a better way to do this
-                    let mut runtime_ticks_string = &rtt.unwrap().to_string()[0..rtt.unwrap().to_string().len() - 7];
-                    if runtime_ticks_string.trim().is_empty() {
-                        runtime_ticks_string = "1"
-                    }
-                    let runtime_ticks = runtime_ticks_string.parse::<i64>().unwrap();
-                    return (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64 + (runtime_ticks - position_ticks)).to_string()
-                }
-            }
-        },
-    };
-    "0".to_string()
-}
-
-fn get_currently_watching(npi: &Value, extname: &String, exturl: &String, timeleft: String) -> Vec<String> {
-    /*
-    This is where we actually get the info for the Movie/Series that we're currently watching.
-    First we set the name variable because that's not gonna change either way.
-    Then we check if its an "Episode" or a "Movie".
-    If its an "Episode" then we set the item type to "episode", get the name of the series, the season and the actual episode number.
-    Then we send that off as a Vec<String> along with the external urls and end timer to the main loop.
-    If its a "Movie" then we try to fetch the "Genres" with a simple for loop!
-    After the for loop is complete we remove the trailing ", " because it looks bad in the presence.
-    Then we send it off as a Vec<String> with the external urls and the end timer to the main loop.
-    */
-    let name = npi.get("Name").expect("Couldn't find Name").to_string();
-    if npi.get("Type").unwrap().as_str().unwrap() == "Episode" {
-        let itemtype = "episode".to_owned();
-        let series_name = npi.get("SeriesName").expect("Couldn't find SeriesName.").to_string();
-        let season = npi.get("ParentIndexNumber").expect("Couldn't find ParentIndexNumber.").to_string();
-        let episode = npi.get("IndexNumber").expect("Couldn't find IndexNumber.").to_string();
-
-        let msg = "S".to_owned() + &season + "E" + &episode + " " + &name[1..name.len() - 1];
-        vec![itemtype, extname.to_owned(), exturl.to_owned(), series_name, timeleft, msg]
-
-    } else if npi.get("Type").unwrap().as_str().unwrap() == "Movie" {
-        let itemtype = "movie".to_owned();
-        let mut episode = "".to_string();
-        match npi.get("Genres") {
-            None => (),
-            genres => {
-                for i in genres.unwrap().as_array().unwrap() {
-                    episode.push_str(i.as_str().unwrap());
-                    episode.push_str(", ");
-                }
-                episode = episode[0..episode.len() - 2].to_string();
-            }
-        };
-
-        return vec![itemtype, extname.to_owned(), exturl.to_owned(), name, timeleft, episode];
-    } else {
-        return vec!["".to_string()]
+    if username.is_empty() {
+        return Err(Box::new(ConfigError::MissingConfig))
     }
+    Ok(Config {
+        rpc_client_id,
+        url,
+        api_key,
+        username,
+        enable_images,
+    })
 }
 
-fn set_activity(drpc: &mut DiscordIpcClient, state_message: &String, details: &str, endtime: i64, rpcbuttons: Vec<activity::Button>, img: &str) {
-    if !state_message.is_empty() && !rpcbuttons.is_empty() {
-        drpc.set_activity(
-            activity::Activity::new()
-            // Set the "state" or message
-            .state(state_message)
-            .details(details)
-            // Add a timestamp
-            .timestamps(activity::Timestamps::new()
-                .end(endtime)
-            )
-            .buttons(rpcbuttons)
-            // Add image and a link to the github repo
-            .assets(
-                activity::Assets::new()
-                    .large_image(img)
-                    .large_text("JellyFlix") 
-            )
-        ).expect("Failed to set activity");
-    } else if state_message.is_empty() && !rpcbuttons.is_empty() {
-        drpc.set_activity(
-            activity::Activity::new()
-            // Set the "state" or message
-            .details(details)
-            // Add a timestamp
-            .timestamps(activity::Timestamps::new()
-                .end(endtime)
-            )
-            .buttons(rpcbuttons)
-            // Add image and a link to the github repo
-            .assets(
-                activity::Assets::new()
-                    .large_image(img)
-                    .large_text("JellyFlix") 
-            )
-        ).expect("Failed to set activity");   
-    } else if !state_message.is_empty() {
-        drpc.set_activity(
-            activity::Activity::new()
-            // Set the "state" or message
-            .state(state_message)
-            .details(details)
-            // Add a timestamp
-            .timestamps(activity::Timestamps::new()
-                .end(endtime)
-            )
-            // Add image and a link to the github repo
-            .assets(
-                activity::Assets::new()
-                    .large_image(img)
-                    .large_text("JellyFlix") 
-            )
-        ).expect("Failed to set activity");
-    } else if state_message.is_empty() {
-        drpc.set_activity(
-            activity::Activity::new()
-            // Set the "state" or message
-            .details(details)
-            // Add a timestamp
-            .timestamps(activity::Timestamps::new()
-                .end(endtime)
-            )
-            // Add image and a link to the github repo
-            .assets(
-                activity::Assets::new()
-                    .large_image(img)
-                    .large_text("JellyFlix") 
-            )
-        ).expect("Failed to set activity");   
-    }
-}
-
-fn connect(drpc: &mut DiscordIpcClient) {
-    loop {
-        match drpc.connect() {
-            Ok(result) => result,
+fn connect(rich_presence_client: &mut DiscordIpcClient) {
+    println!("{}", "------------------------------------------------------------------".bold());
+    retry_with_index(retry::delay::Exponential::from_millis(1000), |current_try| {
+        println!("{} {}{}", "Attempt".bold().truecolor(225, 69, 0), current_try.to_string().bold().truecolor(225, 69, 0), ": Trying to connect".bold().truecolor(225, 69, 0));
+        match rich_presence_client.connect() {
+            Ok(result) => retry::OperationResult::Ok(result),
             Err(_) => {
-                println!("{}", "Failed to connect, retrying in 10 seconds".red().bold()); 
-                std::thread::sleep(std::time::Duration::from_secs(10)); 
-                continue
+                println!("{}", "Failed to connect, retrying soon".red().bold());
+                retry::OperationResult::Retry(())
             },
-        };
-        break;
+        }
+    }).unwrap();
+}
+
+fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: i64, image_url: &'a str, rpcbuttons: Vec<activity::Button<'a>>) -> activity::Activity<'a> {
+    let mut new_activity = activity::Activity::new()
+        .details(details)
+        .timestamps(activity::Timestamps::new()
+            .end(endtime)
+        );
+        
+
+    if !image_url.is_empty() {
+        new_activity = new_activity.clone().assets(
+            activity::Assets::new()
+                .large_image(image_url)
+                .large_text(details)
+                .small_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
+                .small_text("JellyFlix")
+        )
+    } else {
+        new_activity = new_activity.clone().assets(
+            activity::Assets::new()
+                .large_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
+                .large_text("JellyFlix")
+                .small_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
+                .small_text("JellyFlix")
+        )
     }
+
+    if !state_message.is_empty() {
+        new_activity = new_activity.clone().state(state_message);
+    }
+    if !rpcbuttons.is_empty() {
+        new_activity = new_activity.clone().buttons(rpcbuttons);
+    }
+    new_activity
 }
