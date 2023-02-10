@@ -12,7 +12,9 @@ Everything about this program will be found [here](https://github.com/Radiicall/
 - Download latest version of [zip](https://github.com/xenoncolt/jellyflix-rpc/releases) file.
 - Extract downloaded zip file.
 - Edit `example.env` file and replace `xenon` with your username
-```JELLYFIN_USERNAME=xenon```
+```
+JELLYFIN_USERNAME=xenon
+```
 - Save the file and rename `example.env` to `.env`
 - Now double click `jellyflix.exe` file
 
