@@ -8,13 +8,33 @@ Everything about this program will be found [here](https://github.com/Radiicall/
 
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/xenoncolt/jellyflix-rpc?style=plastic) ![GitHub release (latest by date)](https://img.shields.io/github/v/release/xenoncolt/jellyflix-rpc?style=plastic) ![GitHub](https://img.shields.io/github/license/xenoncolt/jellyflix-rpc?style=plastic) ![GitHub all releases](https://img.shields.io/github/downloads/xenoncolt/jellyflix-rpc/total?style=plastic) 
 
-# Setup
-- Download latest version of [zip](https://github.com/xenoncolt/jellyflix-rpc/releases) file.
-- Extract downloaded zip file.
-- Edit `example.env` file and replace `xenon` with your username
+# Example json
+```json
+{ 
+    "Jellyfin": { 
+        "USERNAME": "xenon" 
+    }, 
+    "Discord": { 
+        "ENABLE_IMAGES": true
+    } 
+} 
 ```
-JELLYFIN_USERNAME=xenon
+
+# Installation Guide
+- For Windows Download `jellyflix-rpc.bat` file
+- After downloading open the bat file 
+- Follow the instruction. 
+- Enter valid information ( if you don't know check [example.json](#example-json) file )
+
+# Remove / Uninstallation
+- Before remove/ uninstall, you need to stop the `jellyflix-rpc` service. For that, Run a terminal with administration. Copy this command and hit enter :
+```cmd
+%APPDATA%\jellyfin-rpc\nssm-2.24\win64\nssm.exe stop jellyflix-rpc
 ```
-- Save the file and rename `example.env` to `.env`
-- Now double click `jellyflix.exe` file
+- After stopping the service now you can remove the service from windows. For that, Run a terminal with administration. Copy this command and hit enter : 
+```cmd
+%APPDATA%\jellyfin-rpc\nssm-2.24\win64\nssm.exe remove jellyflix-rpc
+```
+
+If it is not working the creates an issue...
 

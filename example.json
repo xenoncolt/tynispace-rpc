@@ -1,0 +1,8 @@
+{ 
+    "Jellyfin": { 
+        "USERNAME": "YOUR_JELLYFLIX_USERNAME" 
+    }, 
+    "Discord": { 
+        "ENABLE_IMAGES": true
+    } 
+} 

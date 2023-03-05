@@ -6,10 +6,10 @@ use clap::Parser;
 use retry::retry_with_index;
 
 struct Config {
-    rpc_client_id: String,
     url: String,
     api_key: String,
     username: String,
+    rpc_client_id: String,
     enable_images: bool,
 }
 
@@ -35,7 +35,7 @@ impl From<std::io::Error> for ConfigError {
 #[derive(Parser, Debug)]
 #[command(author = "Xenon Colt")]
 #[command(version)]
-#[command(about = "Rich presence for jellyflix", long_about = None)]
+#[command(about = "Rich presence for JellyFlix", long_about = None)]
 struct Args {
     #[arg(short = 'c', long = "config", help = "Path to the config file")]
     config: Option<String>,
@@ -44,14 +44,35 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    dotenv::from_path(
-        args.config.unwrap_or_else(|| 
-            std::env::current_exe().unwrap()
-            .parent().unwrap()
-            .join(".env").to_string_lossy().to_string()
-        )
-    ).ok();
-    let config = load_config().expect("Please make a file called .env and populate it with the needed variables");
+    let config_path = args.config.unwrap_or_else(||
+        if cfg!(not(windows)) {
+            if std::env::var("USER").unwrap() != *"root" {
+                std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_|
+                    {
+                        let mut dir = std::env::var("HOME").unwrap();
+                        dir.push_str("/.config/jellyfin-rpc/main.json");
+                        dir
+                    }
+                )
+            } else {
+                "/etc/jellyfin-rpc/main.json".to_string()
+            }
+        } else {
+            let mut dir = std::env::var("APPDATA").unwrap();
+            dir.push_str("\\jellyflix-rpc\\main.json");
+            dir
+        }
+    );
+
+    std::fs::create_dir_all(std::path::Path::new(&config_path).parent().unwrap()).ok();
+
+    if config_path.ends_with(".env") {
+        panic!("\n{}\n(Example: https://github.com/Radiicall/jellyfin-rpc/blob/main/example.json)\n", "Please update your .env to JSON format.".bold().red())
+    }
+
+    let config = load_config(
+        config_path.clone()
+    ).unwrap_or_else(|_| panic!("\n\nPlease populate your config file '{}' with the needed variables\n(https://github.com/Radiicall/jellyfin-rpc#setup)\n\n", std::fs::canonicalize(config_path).unwrap().to_string_lossy()));
 
     println!("{}\n                          {}", "//////////////////////////////////////////////////////////////////".bold(), "Jellyfin-RPC".bright_blue());
 
@@ -81,12 +102,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Set the activity
             let mut rpcbuttons: Vec<activity::Button> = std::vec::Vec::new();
-            for i in 0..content.external_service_names.len() {
-                rpcbuttons.push(activity::Button::new(
-                    &content.external_service_names[i],
-                    &content.external_service_urls[i],
-                ));
-            }
+            rpcbuttons.push(activity::Button::new(
+                "Watch Now",
+                "https://stream.jellyflix.ga",
+              ));
+
+            rpcbuttons.push(activity::Button::new(
+              "Website",
+              "https://info.jellyflix.ga",
+              ));
 
             rich_presence_client.set_activity(
                 setactivity(&content.state_message, &content.details, content.endtime, &content.image_url, rpcbuttons)
@@ -101,30 +125,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             connected = false;
             println!("{}\n{}\n{}", "------------------------------------------------------------------".bold(), "Cleared Rich Presence".bright_red().bold(), "------------------------------------------------------------------".bold());
         }
-    // Sleep for 2 seconds
+
     std::thread::sleep(std::time::Duration::from_millis(750));
     }
 }
 
-fn load_config() -> Result<Config, Box<dyn core::fmt::Debug>> {
-    let rpc_client_id = "1022477758556798986".to_string();
-    let url = "https://stream.jellyflix.ga".to_string();
-    let api_key = "".to_string();
-    let username = dotenv::var("JELLYFIN_USERNAME").unwrap_or_else(|_| "".to_string());
-    let enable_images = match dotenv::var("ENABLE_IMAGES").unwrap_or_else(|_| "".to_string()).to_lowercase().as_str() {
-        "true" => true,
-        "false" => false,
-        _ => false,
-    };
+fn load_config(path: String) -> Result<Config, Box<dyn core::fmt::Debug>> {
+    let data = std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("\n\nPlease make the file '{}' and populate it with the needed variables\n(https://github.com/Radiicall/jellyfin-rpc#setup)\n\n", path));
+    let res: serde_json::Value = serde_json::from_str(&data).unwrap_or_else(|_| panic!("{}", "\nUnable to parse config file. Is this a json file?\n".red().bold()));
 
-    if username.is_empty() {
+    let jellyfin: serde_json::Value = res["Jellyfin"].clone();
+    let discord: serde_json::Value = res["Discord"].clone();
+
+    let url = "https://stream.jellyflix.ga".to_string();
+    let api_key = "0364822cdce64d149ab1d29376d51c29".to_string();
+    let username = jellyfin["USERNAME"].as_str().unwrap().to_string();
+    let rpc_client_id = "1022477758556798986".to_string();
+    let enable_images = discord["ENABLE_IMAGES"].as_bool().unwrap_or_else(|| 
+        panic!(
+            "\n{}\n{} {} {} {}\n",
+            "ENABLE_IMAGES has to be a bool...".red().bold(),
+            "EXAMPLE:".bold(), "true".bright_green().bold(), "not".bold(), "'true'".red().bold()
+        )
+    );
+
+    if rpc_client_id.is_empty() || url.is_empty() || api_key.is_empty() || username.is_empty() {
         return Err(Box::new(ConfigError::MissingConfig))
     }
     Ok(Config {
-        rpc_client_id,
         url,
         api_key,
         username,
+        rpc_client_id,
         enable_images,
     })
 }
@@ -143,29 +175,40 @@ fn connect(rich_presence_client: &mut DiscordIpcClient) {
     }).unwrap();
 }
 
-fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: i64, image_url: &'a str, rpcbuttons: Vec<activity::Button<'a>>) -> activity::Activity<'a> {
+fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<i64>, image_url: &'a str, rpcbuttons: Vec<activity::Button<'a>>) -> activity::Activity<'a> {
     let mut new_activity = activity::Activity::new()
-        .details(details)
-        .timestamps(activity::Timestamps::new()
-            .end(endtime)
-        );
-        
+        .details(details);
+
+    let mut assets = activity::Assets::new();
+
+
+    match endtime {
+        Some(time) => {
+            new_activity = new_activity.clone().timestamps(activity::Timestamps::new()
+                .end(time)
+            );
+            assets = assets.clone()
+            .small_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
+            .small_text("JellyFlix");
+        },
+        None => {
+            assets = assets.clone()
+            .small_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/pause.png")
+            .small_text("Paused");
+        },
+    }
 
     if !image_url.is_empty() {
         new_activity = new_activity.clone().assets(
-            activity::Assets::new()
+            assets.clone()
                 .large_image(image_url)
                 .large_text(details)
-                .small_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
-                .small_text("JellyFlix")
         )
     } else {
         new_activity = new_activity.clone().assets(
-            activity::Assets::new()
+            assets.clone()
                 .large_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
                 .large_text("JellyFlix")
-                .small_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
-                .small_text("JellyFlix")
         )
     }
 

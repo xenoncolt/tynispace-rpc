@@ -4,7 +4,7 @@ pub struct Content {
     pub media_type: String,
     pub details: String,
     pub state_message: String,
-    pub endtime: i64,
+    pub endtime: Option<i64>,
     pub image_url: String,
     pub external_service_names: Vec<String>,
     pub external_service_urls: Vec<String>,
@@ -42,9 +42,9 @@ pub async fn get_jellyfin_playing(url: &str, api_key: &String, username: &String
 
         let mut image_url: String = "".to_string();
         if enable_images == &true {
-            image_url = get_image(url, main[3].clone()).await;
+            image_url = get_image_jf(url, main[3].clone()).await;
         }
-        
+
         return Ok(Content {
             media_type: main[0].clone(),
             details: main[1].clone(),
@@ -59,12 +59,11 @@ pub async fn get_jellyfin_playing(url: &str, api_key: &String, username: &String
         media_type: "".to_string(),
         details: "".to_string(),
         state_message: "".to_string(),
-        endtime: 0,
+        endtime: Some(0),
         image_url: "".to_string(),
         external_service_names: vec!["".to_string()],
         external_service_urls: vec!["".to_string()],
     })
-    
 }
 
 async fn get_external_services(now_playing_item: &Value) -> Vec<Vec<String>> {
@@ -87,16 +86,20 @@ async fn get_external_services(now_playing_item: &Value) -> Vec<Vec<String>> {
     vec![external_service_names, external_service_urls]
 }
 
-async fn get_end_timer(now_playing_item: &Value, session: &Value) -> i64 {
-    let ticks_to_seconds = 10000000;
+async fn get_end_timer(now_playing_item: &Value, session: &Value) -> Option<i64> {
+    if !session["PlayState"]["IsPaused"].as_bool().unwrap() {
+        let ticks_to_seconds = 10000000;
 
-    let mut position_ticks = session["PlayState"]["PositionTicks"].as_i64().unwrap_or(0);
-    position_ticks /= ticks_to_seconds;
-
-    let mut runtime_ticks = now_playing_item["RunTimeTicks"].as_i64().unwrap_or(0);
-    runtime_ticks /= ticks_to_seconds;
-
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64 + (runtime_ticks - position_ticks)
+        let mut position_ticks = session["PlayState"]["PositionTicks"].as_i64().unwrap_or(0);
+        position_ticks /= ticks_to_seconds;
+    
+        let mut runtime_ticks = now_playing_item["RunTimeTicks"].as_i64().unwrap_or(0);
+        runtime_ticks /= ticks_to_seconds;
+    
+        Some(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64 + (runtime_ticks - position_ticks))
+    } else {
+        None
+    }
 }
 
 async fn get_currently_watching(now_playing_item: &Value) -> Vec<String> {
@@ -145,13 +148,19 @@ async fn get_currently_watching(now_playing_item: &Value) -> Vec<String> {
         };
 
         vec![item_type, name.to_string(), genres, item_id]
+    } else if now_playing_item["Type"].as_str().unwrap() == "Audio" {
+        item_type = "music".to_owned();
+        item_id = now_playing_item["Id"].as_str().unwrap().to_string();
+        let artist: String = now_playing_item["AlbumArtist"].as_str().unwrap().to_string();
+
+        vec![item_type, name.to_string(), artist, item_id]
     } else {
-        // Return 3 empty strings to make vector equal length
-        vec!["".to_string(), "".to_string(), "".to_string()]
+        // Return 4 empty strings to make vector equal length
+        vec!["".to_string(), "".to_string(), "".to_string(), "".to_string()]
     }
 }
 
-async fn get_image(url: &str, item_id: String) -> String {
+async fn get_image_jf(url: &str, item_id: String) -> String {
     format!(
         "{}/Items/{}/Images/Primary",
         url.trim_end_matches('/'),
