@@ -177,7 +177,8 @@ fn connect(rich_presence_client: &mut DiscordIpcClient) {
 
 fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<i64>, image_url: &'a str, rpcbuttons: Vec<activity::Button<'a>>) -> activity::Activity<'a> {
     let mut new_activity = activity::Activity::new()
-        .details(details);
+        .details(details)
+        .state("Watching");
 
     let mut assets = activity::Assets::new();
 
