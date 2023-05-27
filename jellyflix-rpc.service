@@ -1,0 +1,12 @@
+[Unit]
+Description=Jellyflix-RPC Service
+Documentation=https://github.com/xenoncolt/jellyflix-rpc
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/username/.config/jellyflix-rpc/executable
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
