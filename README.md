@@ -12,7 +12,7 @@ Everything about this program will be found [here](https://github.com/Radiicall/
 ```json
 { 
     "Jellyfin": { 
-        "USERNAME": "xenon" 
+        "USERNAME": "YOUR_JELLYFLIX_USERNAME" 
     }, 
     "Discord": { 
         "ENABLE_IMAGES": true
