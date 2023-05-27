@@ -50,12 +50,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_|
                     {
                         let mut dir = std::env::var("HOME").unwrap();
-                        dir.push_str("/.config/jellyfin-rpc/main.json");
+                        dir.push_str("/.config/jellyflix-rpc/main.json");
                         dir
                     }
                 )
             } else {
-                "/etc/jellyfin-rpc/main.json".to_string()
+                "/etc/jellyflix-rpc/main.json".to_string()
             }
         } else {
             let mut dir = std::env::var("APPDATA").unwrap();
