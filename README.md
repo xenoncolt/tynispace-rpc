@@ -40,7 +40,7 @@ Everything about this program will be found [here](https://github.com/Radiicall/
 <details>
 <summary>Click to expand</summary>
 
-[MIT](https://choosealicense.com/licenses/mit/)
+[GPL-3.0](https://github.com/xenoncolt/jellyflix-rpc/blob/main/LICENSE)
 </details>
 
 ### Contact
