@@ -36,5 +36,16 @@ Everything about this program will be found [here](https://github.com/Radiicall/
 %APPDATA%\jellyfin-rpc\nssm-2.24\win64\nssm.exe remove jellyflix-rpc
 ```
 
-If it is not working the creates an issue...
+### License
+<details>
+<summary>Click to expand</summary>
 
+[MIT](https://choosealicense.com/licenses/mit/)
+</details>
+
+### Contact
+<details>
+<summary>Click to expand</summary>
+
+If you have any questions, comments, or concerns, please create a Issue [here](https://github.com/xenoncolt/jellyflix-rpc/issues)
+</details>
