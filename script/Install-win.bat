@@ -1,17 +1,17 @@
 @echo off
 
 REM Set paths
-set EXE_PATH=%APPDATA%\jellyflix-rpc\jellyflix-rpc.exe
-set JSON_PATH=%APPDATA%\jellyflix-rpc\main.json
-set DOWNLOAD_URL=https://github.com/xenoncolt/jellyflix-rpc/releases/latest/download/jellyflix-rpc.exe
-set DOWNLOAD_DIR=%APPDATA%\jellyflix-rpc
+set EXE_PATH=%APPDATA%\tynispace-rpc\tynispace-rpc.exe
+set JSON_PATH=%APPDATA%\tynispace-rpc\main.json
+set DOWNLOAD_URL=https://github.com/xenoncolt/tynispace-rpc/releases/latest/download/tynispace-rpc.exe
+set DOWNLOAD_DIR=%APPDATA%\tynispace-rpc
 
 REM set
-set JELLYFIN_USERNAME=YOUR_JELLYFLIX_USERNAME
+set JELLYFIN_USERNAME=YOUR_TYNISPACE_USERNAME
 set DISCORD_ENABLE_IMAGES=true
 
 echo ===============================================================================
-echo                        JELLYFLIX-RPC INSTALLATION 
+echo                        TYNISPACE-RPC INSTALLATION 
 echo ===============================================================================
 echo.
 
@@ -20,15 +20,15 @@ if not exist "%DOWNLOAD_DIR%" mkdir "%DOWNLOAD_DIR%"
 
 REM Check if jellyflix-rpc.exe is present
 if exist "%EXE_PATH%" (
-    echo jellyflix-rpc.exe is already present. & timeout /t 3 /nobreak >nul
+    echo tynispace-rpc.exe is already present. & timeout /t 3 /nobreak >nul
 ) else (
     REM Downloading jellyflix-rpc binary
-    echo Downloading jellyflix-rpc binary from GitHub... & timeout /t 3 /nobreak >nul
-    curl -L %DOWNLOAD_URL% -o "%DOWNLOAD_DIR%\jellyflix-rpc.exe"
+    echo Downloading tynispace-rpc binary from GitHub... & timeout /t 3 /nobreak >nul
+    curl -L %DOWNLOAD_URL% -o "%DOWNLOAD_DIR%\tynispace-rpc.exe"
 )
 
 rem Prompt the user for input
-set /p JELLYFIN_USERNAME=Enter Jellyflix username "[%JELLYFIN_USERNAME%]": 
+set /p JELLYFIN_USERNAME=Enter TyniSpace username "[%JELLYFIN_USERNAME%]": 
 set /p DISCORD_ENABLE_IMAGES=Enable Discord images (true/false) [%DISCORD_ENABLE_IMAGES%]:
 
 
@@ -67,26 +67,26 @@ if exist "%DOWNLOAD_DIR%\nssm-2.24\win64\nssm.exe" (
 
 REM Install NSSM
 echo Installing jellyflix-rpc service... & timeout /t 3 /nobreak >nul
-%DOWNLOAD_DIR%\nssm-2.24\win64\nssm.exe install jellyflix-rpc "%EXE_PATH%" "-c %JSON_PATH%"
+%DOWNLOAD_DIR%\nssm-2.24\win64\nssm.exe install tynispace-rpc "%EXE_PATH%" "-c %JSON_PATH%"
 
 REM Start the executable using NSSM
-echo Starting jellyflix-rpc service... & timeout /t 3 /nobreak >nul
+echo Starting tynispace-rpc service... & timeout /t 3 /nobreak >nul
 set "psCommand=powershell -Command "Start-Process %DOWNLOAD_DIR%\nssm-2.24\win64\nssm.exe -Verb RunAs -ArgumentList 'start','jellyflix-rpc'""
 powershell -NoProfile -ExecutionPolicy Bypass -Command "%psCommand%"
 
 REM Pause for 5 seconds
 ping -n 5 127.0.0.1 > nul
 
-REM Coded by xenoncolt.tk
+REM Coded by xenoncolt.xyz
 
 REM Check if the service is running
-tasklist /fi "imagename eq jellyflix-rpc.exe" | find ":" > nul
+tasklist /fi "imagename eq tynispace-rpc.exe" | find ":" > nul
 if %errorlevel%==0 (
     echo ===============================================================================
-    echo                      JELLYFLIX-RPC SERVICE IS RUNNING
+    echo                      TYNISPACE-RPC SERVICE IS RUNNING
     echo ===============================================================================
 ) else (
-    echo jellyflix-rpc service failed to start.
+    echo tynispace-rpc service failed to start.
 )
 
 echo.

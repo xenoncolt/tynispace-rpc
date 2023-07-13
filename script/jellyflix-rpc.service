@@ -1,11 +1,11 @@
 [Unit]
-Description=Jellyflix-RPC Service
-Documentation=https://github.com/xenoncolt/jellyflix-rpc
+Description=TyniSpace-RPC Service
+Documentation=https://github.com/xenoncolt/tynispace-rpc
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/username/.config/jellyflix-rpc/executable
+ExecStart=/home/username/.config/tynispace-rpc/executable
 Restart=on-failure
 
 [Install]
