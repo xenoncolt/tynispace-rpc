@@ -189,7 +189,7 @@ fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<
             );
             assets = assets.clone()
             .small_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/TyniSpaceBlack.png")
-            .small_text("JellyFlix");
+            .small_text("TyniSpace");
         },
         None => {
             assets = assets.clone()
@@ -208,7 +208,7 @@ fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<
         new_activity = new_activity.clone().assets(
             assets.clone()
                 .large_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/TyniSpaceBlack.png")
-                .large_text("JellyFlix")
+                .large_text("TyniSpace")
         )
     }
 
