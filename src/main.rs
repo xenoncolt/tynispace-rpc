@@ -50,16 +50,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_|
                     {
                         let mut dir = std::env::var("HOME").unwrap();
-                        dir.push_str("/.config/jellyflix-rpc/main.json");
+                        dir.push_str("/.config/tynispace-rpc/main.json");
                         dir
                     }
                 )
             } else {
-                "/etc/jellyflix-rpc/main.json".to_string()
+                "/etc/tynispace-rpc/main.json".to_string()
             }
         } else {
             let mut dir = std::env::var("APPDATA").unwrap();
-            dir.push_str("\\jellyflix-rpc\\main.json");
+            dir.push_str("\\tynispace-rpc\\main.json");
             dir
         }
     );
@@ -104,12 +104,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut rpcbuttons: Vec<activity::Button> = std::vec::Vec::new();
             rpcbuttons.push(activity::Button::new(
                 "Watch Now",
-                "https://stream.jellyflix.ga",
+                "https://media.tynispace.com",
               ));
 
             rpcbuttons.push(activity::Button::new(
               "Website",
-              "https://info.jellyflix.ga",
+              "https://www.facebook.com/tynispace",
               ));
 
             rich_presence_client.set_activity(
@@ -137,10 +137,10 @@ fn load_config(path: String) -> Result<Config, Box<dyn core::fmt::Debug>> {
     let jellyfin: serde_json::Value = res["Jellyfin"].clone();
     let discord: serde_json::Value = res["Discord"].clone();
 
-    let url = "https://stream.jellyflix.ga".to_string();
-    let api_key = "0364822cdce64d149ab1d29376d51c29".to_string();
+    let url = "https://media.tynispace.com".to_string();
+    let api_key = "a0401d08f8714fc3b5238ae69c04a398".to_string();
     let username = jellyfin["USERNAME"].as_str().unwrap().to_string();
-    let rpc_client_id = "1022477758556798986".to_string();
+    let rpc_client_id = "1124741956241735680".to_string();
     let enable_images = discord["ENABLE_IMAGES"].as_bool().unwrap_or_else(|| 
         panic!(
             "\n{}\n{} {} {} {}\n",
@@ -188,7 +188,7 @@ fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<
                 .end(time)
             );
             assets = assets.clone()
-            .small_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
+            .small_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/TyniSpaceBlack.png")
             .small_text("JellyFlix");
         },
         None => {
@@ -207,7 +207,7 @@ fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<
     } else {
         new_activity = new_activity.clone().assets(
             assets.clone()
-                .large_image("https://xenoncolt.github.io/xenoncoltbot/jellyflix_512.jpg")
+                .large_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/TyniSpaceBlack.png")
                 .large_text("JellyFlix")
         )
     }
