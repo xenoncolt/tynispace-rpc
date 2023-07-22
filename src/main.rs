@@ -187,9 +187,10 @@ fn setactivity<'a>(state_message: &'a String, details: &'a str, endtime: Option<
             new_activity = new_activity.clone().timestamps(activity::Timestamps::new()
                 .end(time)
             );
-            assets = assets.clone()
-            .small_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/TyniSpaceBlack.png")
-            .small_text("TyniSpace");
+            // No Small Image
+            // assets = assets.clone()
+            // .small_image("https://xenoncolt.github.io/file_storage/jellyflix-rpc/TyniSpaceBlack.png")
+            // .small_text("TyniSpace");
         },
         None => {
             assets = assets.clone()
