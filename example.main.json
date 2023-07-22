@@ -1,6 +1,6 @@
 { 
     "Jellyfin": { 
-        "USERNAME": "YOUR_JELLYFLIX_USERNAME" 
+        "USERNAME": "YOUR_TYNISPACE_USERNAME" 
     }, 
     "Discord": { 
         "ENABLE_IMAGES": true
