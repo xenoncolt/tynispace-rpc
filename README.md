@@ -47,5 +47,5 @@ Everything about this program will be found [here](https://github.com/Radiicall/
 <details>
 <summary>Click to expand</summary>
 
-If you have any questions, comments, or concerns, please create a Issue [here](https://github.com/xenoncolt/tynispace-rpc/issues)
+If you have any questions, comments, or concerns, please create a issue [here](https://github.com/xenoncolt/tynispace-rpc/issues)
 </details>
