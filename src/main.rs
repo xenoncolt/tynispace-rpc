@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}\n{}\n{}", "------------------------------------------------------------------".bold(), "Cleared Rich Presence".bright_red().bold(), "------------------------------------------------------------------".bold());
         }
 
-    std::thread::sleep(std::time::Duration::from_millis(750));
+    std::thread::sleep(std::time::Duration::from_secs(3));
     }
 }
 
