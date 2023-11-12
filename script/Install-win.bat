@@ -79,11 +79,11 @@ ping -n 5 127.0.0.1 > nul
 REM Coded by xenoncolt.xyz
 
 REM Check if the service is running
-tasklist /fi "imagename eq tynispace-rpc.exe" | find ":" > nul
+sc query tynispace-rpc | findstr RUNNING > nul
 if %errorlevel%==0 (
     echo ===============================================================================
     echo                      TYNISPACE-RPC SERVICE IS RUNNING
-    echo ===============================================================================
+    echo =============================================================================== & timeout /t 3 /nobreak >nul
 ) else (
     echo tynispace-rpc service failed to start.
 )
