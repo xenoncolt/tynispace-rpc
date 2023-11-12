@@ -71,8 +71,7 @@ echo Installing jellyflix-rpc service... & timeout /t 3 /nobreak >nul
 
 REM Start the executable using NSSM
 echo Starting tynispace-rpc service... & timeout /t 3 /nobreak >nul
-set "psCommand=powershell -Command "Start-Process %DOWNLOAD_DIR%\nssm-2.24\win64\nssm.exe -Verb RunAs -ArgumentList 'start','jellyflix-rpc'""
-powershell -NoProfile -ExecutionPolicy Bypass -Command "%psCommand%"
+powershell -Command "Start-Process cmd -Verb RunAs -ArgumentList '/c net start tynispace-rpc'"
 
 REM Pause for 5 seconds
 ping -n 5 127.0.0.1 > nul
