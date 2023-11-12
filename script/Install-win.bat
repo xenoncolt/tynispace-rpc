@@ -45,7 +45,8 @@ echo } >> main.json
 REM Check if main.json is present
 if exist "%JSON_PATH%" (
     echo main.json file is already present & timeout /t 3 /nobreak >nul
-    del "main.json"
+    move "main.json" "%DOWNLOAD_DIR%\"
+    echo main.json file is replace with new data & timeout /t 3 /nobreak >nul
 ) else (
     move "main.json" "%DOWNLOAD_DIR%\"
 )
